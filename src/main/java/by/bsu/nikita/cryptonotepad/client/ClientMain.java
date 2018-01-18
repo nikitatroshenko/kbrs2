@@ -28,20 +28,19 @@ public class ClientMain {
     private static Properties properties;
     private static Date lastActivity;
     private static int failedAttempts;
-    private static int numberOfLocks;
 
     public static void main(String[] args) {
         try {
-            String serverHost = "localhost";
-            int serverPort = 8888;
+            String serverHost = System.getProperty("cryptonotepad.host", "localhost");
+            int serverPort = Integer.parseInt(System.getProperty("cryptonotepad.port", "8888"));
             Socket socket = new Socket(serverHost, serverPort);
 
             ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
             ObjectInputStream is = new ObjectInputStream(socket.getInputStream());
 
             generateRsaPairKey();
-            System.out.println("[C] RSA key pair generated.");
-            System.out.println("[C] ePublicKey: " + publicKey);
+//            System.out.println("[C] RSA key pair generated.");
+//            System.out.println("[C] ePublicKey: " + publicKey);
             os.writeObject(publicKey);
             os.writeObject(N);
             os.flush();
@@ -50,8 +49,8 @@ public class ClientMain {
             encSessionKey = (byte[]) is.readObject();
             String decSessionKey = new String(RSA.decryptRSA(encSessionKey, privateKey, N));
 
-            System.out.println("[C] Client decoded session key by dPrivateKey");
-            System.out.println("[C] decSessionKey: " + decSessionKey);
+//            System.out.println("[C] Client decoded session key by dPrivateKey");
+//            System.out.println("[C] decSessionKey: " + decSessionKey);
 
             Pair<String, String> credentials = getCredentials();
             Encoder encoder = AesEncoder.getInstance();
@@ -70,6 +69,7 @@ public class ClientMain {
 
             Integer pin = getStoredPin();
             if (pin == null) {
+                System.out.println("Creating new pin");
                 pin = getPinFromTerminal();
             }
             savePin(pin);
@@ -83,13 +83,17 @@ public class ClientMain {
 
                 Date now = new Date();
                 if (now.getTime() - lastActivity.getTime() > PIN_TIMEOUT) {
+                    System.out.println("You were idle for " + PIN_TIMEOUT / 1000 / 60 + " minutes. Enter your PIN");
                     checkPinStateful();
                     failedAttempts = 0;
                     System.out.println("Pin correct");
                 }
+                lastActivity = now;
 
                 if (":newpin".equals(filename)) {
+                    System.out.println("Changing your PIN. Enter your existing PIN:");
                     checkPinStateful();
+                    System.out.println("Enter new PIN:");
                     int newPin = getPinFromTerminal();
                     savePin(newPin);
                     continue;
@@ -98,14 +102,14 @@ public class ClientMain {
                 os.writeObject(encoder.encrypt(filename, decSessionKey));
 
                 String encText = (String) is.readObject();
-                System.out.println("got text");
 
-                System.out.println("[C] Client got text, encoded session key:\n" + new String(Hex.decodeHex(encText)));
-                System.out.println("[C] encSessionKey: " + Hex.encodeHexString(encSessionKey));
+//                System.out.println("[C] Client got text, encoded session key:\n" + new String(Hex.decodeHex(encText)));
+//                System.out.println("[C] encSessionKey: " + Hex.encodeHexString(encSessionKey));
 
                 String decText = encoder.decrypt(encText, decSessionKey);
-                System.out.println("[C] Client decoded text");
-                System.out.println("[C] decText:\n\n" + decText);
+//                System.out.println("[C] Client decoded text");
+//                System.out.println("[C] decText:\n\n" + decText);
+                System.out.println(decText);
             }
         } catch (Exception ex) {
             Logger.getLogger(ClientMain.class.getName()).log(Level.SEVERE, null, ex);
@@ -117,7 +121,6 @@ public class ClientMain {
             failedAttempts++;
             System.out.println("Wrong pin");
             if (failedAttempts == 3) {
-                numberOfLocks++;
                 System.out.println("3 wrong pins. Exiting...");
                 System.exit(0);
             }
