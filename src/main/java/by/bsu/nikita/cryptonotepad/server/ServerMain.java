@@ -12,7 +12,8 @@ import java.util.logging.Logger;
 public class ServerMain {
 
     public static void main(String[] args) {
-        try (ServerSocket server = new ServerSocket(8888)) {
+        int port = Integer.parseInt(System.getProperty("cryptonotepad.port", "8888"));
+        try (ServerSocket server = new ServerSocket(port)) {
             System.out.println("Initializing credentials storage");
             initCredentialsStorage();
             System.out.println("Server is initialized successfully.");
